@@ -21,13 +21,21 @@ function cssLogin() {
 }
 
 function cssRegister() {
-    cy.contains('Sign up').click();
-    cy.get('#email').type('alice@example.com');
-    cy.get('#password').type('secret');
-    cy.get('#confirmPassword').type('secret');
-    cy.get('#podName').type('alice');
-    cy.contains('button', 'Sign up').click();
-    cy.contains('a', 'log in').click();
+    cy.request({
+        method: 'POST',
+        url: `${cssPodUrl}/idp/register/`,
+        headers: { Accept: 'application/json' },
+        body: {
+            email: 'alice@example.com',
+            password: 'secret',
+            confirmPassword: 'secret',
+            createWebId: true,
+            register: true,
+            createPod: true,
+            rootPod: false,
+            podName: 'alice',
+        },
+    });
 }
 
 function cssResetPOD(options: Partial<ResetOptions> = {}) {
