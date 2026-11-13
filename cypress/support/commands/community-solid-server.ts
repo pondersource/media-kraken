@@ -24,7 +24,6 @@ function cssRegister() {
     cy.contains('Sign up').click();
     cy.get('#email').type('alice@example.com');
     cy.get('#password').type('secret');
-    cy.get('#confirmPassword').type('secret');
     cy.get('#podName').type('alice');
     cy.contains('button', 'Sign up').click();
     cy.contains('a', 'log in').click();
