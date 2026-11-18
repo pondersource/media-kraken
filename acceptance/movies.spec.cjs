@@ -75,7 +75,9 @@ test('production app imports private movies and reads watched state from a fresh
         const storageRoot = path.resolve(__dirname, '.pod');
         const documents = [...writes].map(url => {
             const resource = new URL(url).pathname.replace(/^\//, '');
-            const filename = path.join(storageRoot, resource);
+            // CSS's ExtensionBasedMapper adds $.ttl for extensionless Turtle resources.
+            const direct = path.join(storageRoot, resource);
+            const filename = fs.existsSync(direct) ? direct : direct + '$.ttl';
             expect(fs.existsSync(filename), 'persisted resource ' + resource).toBeTruthy();
             return { url, body: fs.readFileSync(filename, 'utf8') };
         });
