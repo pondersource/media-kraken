@@ -8,11 +8,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 const sourceCommitHash = execSync('git rev-parse HEAD').toString();
 const versionName = 'v' + version + (isProduction ? '' : ('-next-' + sourceCommitHash));
 const isTesting = process.env.NODE_ENV === 'testing';
-const publicPath = isProduction ? '/media-kraken/' : '/';
+const publicPath = process.env.VUE_APP_PUBLIC_PATH || (isProduction ? '/media-kraken/' : '/');
 const title = 'Media Kraken';
 const description = 'Track your movies with Media Kraken and never miss a beat!';
-const baseUrl = isProduction ? 'https://noeldemartin.github.io/media-kraken/' : 'http://localhost:8080';
-const sourceUrl = 'https://github.com/noeldemartin/media-kraken';
+const baseUrl = process.env.VUE_APP_BASE_URL || (isProduction ? 'https://noeldemartin.github.io/media-kraken/' : 'http://localhost:8080');
+const sourceUrl = 'https://github.com/pondersource/media-kraken';
 const releaseNotesUrl = sourceUrl + (isProduction ? `/releases/tag/${versionName}` : `/tree/${sourceCommitHash}`);
 
 process.env.VUE_APP_VERSION = version;

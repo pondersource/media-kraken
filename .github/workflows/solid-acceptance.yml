@@ -16,3 +16,30 @@ jobs:
         env:
           CYPRESS_integrationFolder: cypress/integration
           CYPRESS_testFiles: auth.spec.ts
+
+  playwright:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - run: echo "NODE14_BIN=$(dirname "$(command -v node)")" >> "$GITHUB_ENV"
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - run: npm run build
+        env:
+          VUE_APP_PUBLIC_PATH: /
+          VUE_APP_BASE_URL: http://localhost:8080
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix acceptance --no-package-lock --ignore-scripts
+      - run: npx --prefix acceptance playwright install --with-deps chromium
+      - run: npm --prefix acceptance test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: acceptance/test-results/
