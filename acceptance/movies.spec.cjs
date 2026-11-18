@@ -7,6 +7,10 @@ const schema = 'https://schema.org/';
 const rdfType = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 async function connect(page) {
+    if (process.env.ACCEPTANCE_URL) {
+        // Allow this public test origin to reach the disposable localhost Pod.
+        await page.context().grantPermissions(['local-network-access'], { origin: process.env.ACCEPTANCE_URL });
+    }
     await page.goto('/');
     await page.getByRole('button', { name: 'Use Solid', exact: true }).click();
     await page.getByPlaceholder('Solid POD url').fill(pod);
@@ -15,7 +19,7 @@ async function connect(page) {
     await page.locator('#password').fill('media-kraken-ci-password');
     await page.getByRole('button', { name: 'Log in', exact: true }).click();
     await page.getByRole('button', { name: /consent|authorize/i }).click();
-    await expect(page).toHaveURL(/^http:\/\/localhost:8080\//);
+    await expect(page).toHaveURL(url => url.origin === new URL(process.env.ACCEPTANCE_URL || 'http://localhost:8080').origin);
 }
 
 test('production app imports private movies and reads watched state from a fresh browser', async ({ page, browser, request, baseURL }) => {

@@ -12,6 +12,7 @@ const publicPath = process.env.VUE_APP_PUBLIC_PATH || (isProduction ? '/media-kr
 const title = 'Media Kraken';
 const description = 'Track your movies with Media Kraken and never miss a beat!';
 const baseUrl = process.env.VUE_APP_BASE_URL || (isProduction ? 'https://noeldemartin.github.io/media-kraken/' : 'http://localhost:8080');
+const cacheBaseUrl = (baseUrl.endsWith('/') ? baseUrl : baseUrl + '/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const sourceUrl = 'https://github.com/pondersource/media-kraken';
 const releaseNotesUrl = sourceUrl + (isProduction ? `/releases/tag/${versionName}` : `/tree/${sourceCommitHash}`);
 
@@ -123,11 +124,11 @@ module.exports = {
             ],
             runtimeCaching: [
                 {
-                    urlPattern: /^https:\/\/noeldemartin\.github\.io\/media-kraken\/$/,
+                    urlPattern: new RegExp('^' + cacheBaseUrl + '$'),
                     handler: 'NetworkFirst',
                 },
                 {
-                    urlPattern: /^https:\/\/noeldemartin\.github\.io\/media-kraken\/.*/,
+                    urlPattern: new RegExp('^' + cacheBaseUrl + '.*'),
                     handler: 'CacheFirst',
                 },
             ],
