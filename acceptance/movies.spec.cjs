@@ -15,7 +15,7 @@ async function connect(page) {
     await page.locator('#password').fill('media-kraken-ci-password');
     await page.getByRole('button', { name: 'Log in', exact: true }).click();
     await page.getByRole('button', { name: /consent|authorize/i }).click();
-    await expect(page).toHaveURL(/^http:\/\/localhost:8080\//);
+    await expect(page).toHaveURL(url => url.origin === new URL(process.env.ACCEPTANCE_URL || 'http://localhost:8080').origin);
 }
 
 test('production app imports private movies and reads watched state from a fresh browser', async ({ page, browser, request, baseURL }) => {
