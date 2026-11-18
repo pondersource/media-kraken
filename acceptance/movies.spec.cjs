@@ -72,7 +72,7 @@ test('production app imports private movies and reads watched state from a fresh
         expect(remoteReads).toEqual(expect.arrayContaining([...writes]));
         // Inspect the disposable server's persisted resources independently of app caches.
         // Chromium's captured cross-origin response bodies can be empty for these requests.
-        const storageRoot = path.resolve(__dirname, '../.acceptance-pod');
+        const storageRoot = path.resolve(__dirname, '.pod');
         const documents = [...writes].map(url => {
             const resource = new URL(url).pathname.replace(/^\//, '');
             const filename = path.join(storageRoot, resource);

@@ -4,6 +4,6 @@ module.exports = defineConfig({
     use: { baseURL: 'http://localhost:8080', trace: 'retain-on-failure' },
     webServer: [
         { command: 'node acceptance/serve.cjs', cwd: '..', url: 'http://localhost:8080' },
-        { command: 'PATH="$NODE14_BIN:$PATH" npm run test:serve-pod -- -c @css:config/file.json -f .acceptance-pod', cwd: '..', url: 'http://localhost:4000' },
+        { command: 'PATH="$NODE14_BIN:$PATH" npm run test:serve-pod -- -c acceptance/css.json -f acceptance/.pod', cwd: '..', url: 'http://localhost:4000' },
     ],
 });
