@@ -61,8 +61,8 @@ test('production app imports private movies and reads watched state from a fresh
         const freshPage = await fresh.newPage();
         const readBodies = [];
         freshPage.on('response', response => {
-            if (response.ok() && response.request().method() === 'GET' && writes.has(response.url())) {
-                readBodies.push(response.text().then(body => ({ body, url: response.url() })));
+            if (response.ok() && response.request().method() === 'GET' && response.url().startsWith(pod + 'movies/')) {
+                readBodies.push(response.text().then(body => ({ body, url: response.url(), status: response.status(), headers: response.headers(), requestHeaders: response.request().headers() })));
             }
         });
         await connect(freshPage);
@@ -72,7 +72,7 @@ test('production app imports private movies and reads watched state from a fresh
         const bodies = await Promise.all(readBodies);
         expect(bodies.length).toBeGreaterThanOrEqual(2);
         const quads = bodies.flatMap(({ body, url }) => new Parser({ baseIRI: url }).parse(body));
-        console.log('Pod RDF summary', JSON.stringify(bodies.map(({ url, body }) => ({ url, bytes: body.length }))), JSON.stringify(quads.map(q => ({ s: q.subject.value, p: q.predicate.value, o: q.predicate.value.endsWith('name') || q.predicate.value === rdfType || q.predicate.value === schema + 'object' ? q.object.value : q.object.termType }))));
+        console.log('Pod RDF summary', JSON.stringify(bodies.map(({ url, body, status, headers, requestHeaders }) => ({ url, bytes: body.length, status, contentType: headers['content-type'], accept: requestHeaders.accept, prefer: requestHeaders.prefer }))), JSON.stringify(quads.map(q => ({ s: q.subject.value, p: q.predicate.value, o: q.predicate.value.endsWith('name') || q.predicate.value === rdfType || q.predicate.value === schema + 'object' ? q.object.value : q.object.termType }))));
         const symbol = quads.find(q => q.predicate.value === schema + 'name' && q.object.value === 'Symbol').subject;
         const action = quads.find(q => q.predicate.value === rdfType && q.object.value === schema + 'WatchAction').subject;
         expect(quads.some(q => q.subject.equals(action) && q.predicate.value === schema + 'object' && q.object.equals(symbol))).toBeTruthy();
