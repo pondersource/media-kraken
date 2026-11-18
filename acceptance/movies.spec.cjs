@@ -59,23 +59,49 @@ test('production app imports private movies and reads watched state from a fresh
     const fresh = await browser.newContext({ baseURL });
     try {
         const freshPage = await fresh.newPage();
-        const readBodies = [];
+        const remoteReads = [];
         freshPage.on('response', response => {
             if (response.ok() && response.request().method() === 'GET' && response.url().startsWith(pod + 'movies/')) {
-                readBodies.push(response.text().then(body => ({ body, url: response.url(), status: response.status(), headers: response.headers(), requestHeaders: response.request().headers() })));
+                remoteReads.push(response.url());
             }
         });
         await connect(freshPage);
         await freshPage.getByText('My Collection', { exact: true }).click();
         await expect(freshPage.getByRole('link', { name: 'Symbol (Watched)', exact: true })).toBeVisible();
         await expect(freshPage.getByRole('link', { name: 'Jaws (Watch later)', exact: true })).toBeVisible();
-        const bodies = await Promise.all(readBodies);
-        expect(bodies.length).toBeGreaterThanOrEqual(2);
-        const quads = bodies.flatMap(({ body, url }) => new Parser({ baseIRI: url }).parse(body));
-        console.log('Pod RDF summary', JSON.stringify(bodies.map(({ url, body, status, headers, requestHeaders }) => ({ url, bytes: body.length, status, contentType: headers['content-type'], accept: requestHeaders.accept, prefer: requestHeaders.prefer }))), JSON.stringify(quads.map(q => ({ s: q.subject.value, p: q.predicate.value, o: q.predicate.value.endsWith('name') || q.predicate.value === rdfType || q.predicate.value === schema + 'object' ? q.object.value : q.object.termType }))));
+        expect(remoteReads).toEqual(expect.arrayContaining([...writes]));
+        // Inspect the disposable server's persisted resources independently of app caches.
+        // Chromium's captured cross-origin response bodies can be empty for these requests.
+        const storageRoot = path.resolve(__dirname, '../.acceptance-pod');
+        const documents = [...writes].map(url => {
+            const resource = new URL(url).pathname.replace(/^\//, '');
+            const filename = path.join(storageRoot, resource);
+            expect(fs.existsSync(filename), 'persisted resource ' + resource).toBeTruthy();
+            return { url, body: fs.readFileSync(filename, 'utf8') };
+        });
+        const quads = documents.flatMap(({ body, url }) => new Parser({ baseIRI: url }).parse(body));
         const symbol = quads.find(q => q.predicate.value === schema + 'name' && q.object.value === 'Symbol').subject;
         const action = quads.find(q => q.predicate.value === rdfType && q.object.value === schema + 'WatchAction').subject;
         expect(quads.some(q => q.subject.equals(action) && q.predicate.value === schema + 'object' && q.object.equals(symbol))).toBeTruthy();
+
+        const expanded = new Map();
+        for (const quad of quads) {
+            const id = quad.subject.value;
+            const node = expanded.get(id) || { '@id': id };
+            expanded.set(id, node);
+            if (quad.predicate.value === rdfType && quad.object.termType === 'NamedNode') {
+                (node['@type'] ||= []).push(quad.object.value);
+                continue;
+            }
+            const value = quad.object.termType === 'NamedNode'
+                ? { '@id': quad.object.value }
+                : { '@value': quad.object.value, ...(quad.object.datatype ? { '@type': quad.object.datatype.value } : {}) };
+            (node[quad.predicate.value] ||= []).push(value);
+        }
+        const { parseMovies } = await import('../shared-data-modules/movies/vanilla/build/src/main.js');
+        const interpreted = parseMovies([...expanded.values()]);
+        expect(interpreted.listings.map(listing => listing.movie.name).sort()).toEqual(['Jaws', 'Symbol']);
+        expect(interpreted.watchActions.some(viewing => viewing.listingId === symbol.value)).toBeTruthy();
     } finally {
         await fresh.close();
     }

@@ -1,6 +1,11 @@
 name: Solid browser acceptance
 on:
   pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   solid:
     runs-on: ubuntu-22.04
@@ -21,6 +26,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: pondersource/data-modules
+          ref: 49bbc7fb230936ec198a6cd19ca30566ed755809
+          path: shared-data-modules
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -37,9 +47,58 @@ jobs:
           node-version: '22'
       - run: npm install --prefix acceptance --no-package-lock --ignore-scripts
       - run: npx --prefix acceptance playwright install --with-deps chromium
+      - run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+        working-directory: shared-data-modules/movies/vanilla
+      - run: npx tsc -p tsconfig.json
+        working-directory: shared-data-modules/movies/vanilla
       - run: npm --prefix acceptance test
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-results
           path: acceptance/test-results/
+
+  build:
+    needs: [solid, playwright]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - run: npm run build
+        env:
+          VUE_APP_PUBLIC_PATH: /
+          VUE_APP_BASE_URL: https://media-kraken.pondersource.com
+      - run: |
+          printf '%s\n' media-kraken.pondersource.com > dist/CNAME
+          touch dist/.nojekyll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: media-kraken-production
+          path: dist/
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: media-kraken-production
+          path: site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
+        id: deployment
