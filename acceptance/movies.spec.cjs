@@ -7,6 +7,10 @@ const schema = 'https://schema.org/';
 const rdfType = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 async function connect(page) {
+    if (process.env.ACCEPTANCE_URL) {
+        // Allow this public test origin to reach the disposable localhost Pod.
+        await page.context().grantPermissions(['local-network-access'], { origin: process.env.ACCEPTANCE_URL });
+    }
     await page.goto('/');
     await page.getByRole('button', { name: 'Use Solid', exact: true }).click();
     await page.getByPlaceholder('Solid POD url').fill(pod);
