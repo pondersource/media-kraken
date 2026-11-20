@@ -7,9 +7,11 @@ http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     let filename = path.resolve(root, '.' + pathname);
     if (!filename.startsWith(root + path.sep) && filename !== root) { res.writeHead(403).end(); return; }
+    if (pathname === '/') filename = path.join(root, 'index.html');
     if (!fs.existsSync(filename) || fs.statSync(filename).isDirectory()) {
         if (path.extname(pathname)) { res.writeHead(404).end(); return; }
-        filename = path.join(root, 'index.html');
+        res.statusCode = 404;
+        filename = path.join(root, '404.html');
     }
     res.setHeader('Content-Type', types[path.extname(filename)] || 'application/octet-stream');
     fs.createReadStream(filename).pipe(res);
