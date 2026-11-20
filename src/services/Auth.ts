@@ -166,8 +166,11 @@ export default class Auth extends Service<State> {
 
         await newUser.login();
 
-        if (Services.$router.currentRoute.name === 'login')
-            Services.$router.replace({ name: 'home' });
+        if (Services.$router.currentRoute.name === 'login') {
+            // rs.js restores the URL before this asynchronous profile becomes ready.
+            const restoredPath = window.location.pathname + window.location.search + window.location.hash;
+            Services.$router.replace(window.location.pathname === '/login' ? { name: 'home' } : restoredPath);
+        }
 
         EventBus.emit('login', newUser);
     }

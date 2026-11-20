@@ -23,6 +23,7 @@ process.env.VUE_APP_RELEASE_NOTES_URL = releaseNotesUrl;
 process.env.VUE_APP_PUBLIC_PATH = publicPath;
 
 module.exports = {
+    css: { loaderOptions: { sass: { implementation: require('sass') } } },
     publicPath,
     pages: {
         'index': {

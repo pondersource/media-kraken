@@ -58,7 +58,9 @@ export function initRouter(router: VueRouter) {
         router.replace(githubPagesRedirect);
     });
 
-    router.beforeEach((to, _, next) => {
+    router.beforeEach(async (to, _, next) => {
+        // Keep a restored route while the widget completes asynchronous login.
+        if (Vue.instance && Vue.instance.$auth) await Vue.instance.$auth.ready;
         const forcedRoute = getForcedRoute();
 
         if (forcedRoute !== null && to.name !== forcedRoute) {

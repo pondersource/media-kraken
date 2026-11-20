@@ -12,31 +12,22 @@ async function connect(page) {
         await page.context().grantPermissions(['local-network-access'], { origin: process.env.ACCEPTANCE_URL });
     }
     await page.goto('/');
-    await page.getByRole('button', { name: 'Use Solid', exact: true }).click();
-    await page.getByPlaceholder('Solid POD url').fill(pod);
-    await page.getByRole('button', { name: 'Log in with Solid', exact: true }).click();
+    await page.locator('.rs-choose-solid').click();
+    await page.locator('[name=rs-provider-address]').fill('http://localhost:4000');
+    await page.locator('.rs-solid-connect').click();
     await page.locator('#email').fill('alice@example.com');
-    await page.locator('#password').fill('media-kraken-ci-password');
+    await page.locator('#password').fill('storage-test-password');
     await page.getByRole('button', { name: 'Log in', exact: true }).click();
     await page.getByRole('button', { name: /consent|authorize/i }).click();
     await expect(page).toHaveURL(url => url.origin === new URL(process.env.ACCEPTANCE_URL || 'http://localhost:8080').origin);
 }
 
 test('production app imports private movies and reads watched state from a fresh browser', async ({ page, browser, request, baseURL }) => {
-    const signup = await request.post('http://localhost:4000/idp/register/', {
-        headers: { Accept: 'application/json' },
-        data: {
-            email: 'alice@example.com', password: 'media-kraken-ci-password',
-            confirmPassword: 'media-kraken-ci-password', createWebId: true,
-            register: true, createPod: true, rootPod: false, podName: 'alice',
-        },
-    });
-    expect(signup.ok()).toBeTruthy();
     await connect(page);
     await expect(page.getByText('Welcome to Media Kraken!')).toBeVisible();
     const writes = new Set();
     page.on('response', response => {
-        if (response.ok() && response.url().startsWith(pod + 'movies/') &&
+        if (response.ok() && response.url().startsWith(pod + 'movies/_rs/resources/') &&
             ['PUT', 'PATCH', 'POST'].includes(response.request().method()) &&
             (response.request().postData() || '').includes(schema + 'Movie')) {
             writes.add(new URL(response.headers().location || response.url(), response.url()).href);
@@ -54,9 +45,9 @@ test('production app imports private movies and reads watched state from a fresh
     await page.getByText('My Collection', { exact: true }).click();
     await expect(page.getByRole('link', { name: 'Symbol (Watched)', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Jaws (Watch later)', exact: true })).toBeVisible();
-    expect(writes.size).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => writes.size).toBeGreaterThanOrEqual(2);
     for (const url of writes) {
-        expect(url).not.toBe(pod + 'movies/');
+        expect(url).not.toBe(pod + 'movies/_rs/resources/');
         expect([401, 403, 404]).toContain((await request.get(url)).status());
     }
 
@@ -65,7 +56,7 @@ test('production app imports private movies and reads watched state from a fresh
         const freshPage = await fresh.newPage();
         const remoteReads = [];
         freshPage.on('response', response => {
-            if (response.ok() && response.request().method() === 'GET' && response.url().startsWith(pod + 'movies/')) {
+            if (response.ok() && response.request().method() === 'GET' && response.url().startsWith(pod + 'movies/_rs/resources/')) {
                 remoteReads.push(response.url());
             }
         });
@@ -74,16 +65,15 @@ test('production app imports private movies and reads watched state from a fresh
         await expect(freshPage.getByRole('link', { name: 'Symbol (Watched)', exact: true })).toBeVisible();
         await expect(freshPage.getByRole('link', { name: 'Jaws (Watch later)', exact: true })).toBeVisible();
         expect(remoteReads).toEqual(expect.arrayContaining([...writes]));
-        // Inspect the disposable server's persisted resources independently of app caches.
-        // Chromium's captured cross-origin response bodies can be empty for these requests.
-        const storageRoot = path.resolve(__dirname, '.pod');
-        const documents = [...writes].map(url => {
-            const resource = new URL(url).pathname.replace(/^\//, '');
-            // CSS's ExtensionBasedMapper adds $.ttl for extensionless Turtle resources.
-            const direct = path.join(storageRoot, resource);
-            const filename = fs.existsSync(direct) ? direct : direct + '$.ttl';
-            expect(fs.existsSync(filename), 'persisted resource ' + resource).toBeTruthy();
-            return { url, body: fs.readFileSync(filename, 'utf8') };
+        // The new browser has no cached app data; the module read above came from the pod.
+        const documents = await freshPage.evaluate(async () => {
+            const module = window.ponderStorage.api;
+            const documents = [];
+            for (const url of await module.resources.urls()) {
+                const resource = await module.resources.get(url);
+                if (resource.kind === 'rdf') documents.push({ url, body: resource.triples.join('\n') });
+            }
+            return documents;
         });
         const quads = documents.flatMap(({ body, url }) => new Parser({ baseIRI: url }).parse(body));
         const symbol = quads.find(q => q.predicate.value === schema + 'name' && q.object.value === 'Symbol').subject;
@@ -108,6 +98,13 @@ test('production app imports private movies and reads watched state from a fresh
         const interpreted = parseMovies([...expanded.values()]);
         expect(interpreted.listings.map(listing => listing.movie.name).sort()).toEqual(['Jaws', 'Symbol']);
         expect(interpreted.watchActions.some(viewing => viewing.listingId === symbol.value)).toBeTruthy();
+        const collectionRoute=freshPage.url();
+        await freshPage.reload();
+        await expect(freshPage).toHaveURL(collectionRoute);
+        await expect(freshPage.getByRole('link', {name: 'Symbol (Watched)', exact:true})).toBeVisible();
+        if (!await freshPage.locator('.rs-box-connected .rs-disconnect').isVisible()) await freshPage.locator('.rs-widget-icon').click();
+        await freshPage.locator('.rs-box-connected .rs-disconnect').click();
+        await expect(freshPage.getByText('Symbol', {exact:true})).toHaveCount(0);
     } finally {
         await fresh.close();
     }

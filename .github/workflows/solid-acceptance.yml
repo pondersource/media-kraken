@@ -16,11 +16,10 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci
-      - name: Run Solid authentication and persistence scenarios
-        run: npm run cy:test
         env:
-          CYPRESS_integrationFolder: cypress/integration
-          CYPRESS_testFiles: auth.spec.ts
+          CYPRESS_INSTALL_BINARY: '0'
+      - name: Run application unit tests
+        run: npm test -- --runInBand
 
   playwright:
     runs-on: ubuntu-22.04
@@ -46,6 +45,10 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix acceptance --no-package-lock --ignore-scripts
+      - name: Install the Solid test server outside the legacy app dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rs-css" --no-package-lock --ignore-scripts @solid/community-server@7.2.0
+          echo "RS_TEST_SERVER=$RUNNER_TEMP/rs-css/node_modules/@solid/community-server/bin/server.js" >> "$GITHUB_ENV"
       - run: npx --prefix acceptance playwright install --with-deps chromium
       - run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
         working-directory: shared-data-modules/movies/vanilla
@@ -124,6 +127,10 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --prefix acceptance --no-package-lock --ignore-scripts
+      - name: Install the Solid test server outside the legacy app dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rs-css" --no-package-lock --ignore-scripts @solid/community-server@7.2.0
+          echo "RS_TEST_SERVER=$RUNNER_TEMP/rs-css/node_modules/@solid/community-server/bin/server.js" >> "$GITHUB_ENV"
       - run: npx --prefix acceptance playwright install --with-deps chromium
       - run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
         working-directory: shared-data-modules/movies/vanilla
