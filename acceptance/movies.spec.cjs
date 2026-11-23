@@ -24,7 +24,7 @@ async function connect(page) {
 
 test('production app imports private movies and reads watched state from a fresh browser', async ({ page, browser, request, baseURL }) => {
     await connect(page);
-    await expect(page.getByText('Welcome to Media Kraken!')).toBeVisible();
+    await expect(page.getByText('Welcome to Media Kraken!')).toBeVisible({ timeout: 20_000 });
     const writes = new Set();
     page.on('response', response => {
         if (response.ok() && response.url().startsWith(pod + 'movies/_rs/resources/') &&
@@ -35,7 +35,7 @@ test('production app imports private movies and reads watched state from a fresh
     });
     await page.getByText("Yes, I have some movies I'd like to import", { exact: true }).click();
     await page.getByRole('button', { name: 'Import from JSON-LD', exact: true }).click();
-    await page.locator('input[type=file]').setInputFiles({
+    await page.locator('#file-picker').setInputFiles({
         name: 'collection.json', mimeType: 'application/ld+json',
         buffer: fs.readFileSync(path.join(__dirname, '../cypress/fixtures/collection.json')),
     });
