@@ -50,9 +50,12 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/rs-css" --no-package-lock --ignore-scripts @solid/community-server@7.2.0
           echo "RS_TEST_SERVER=$RUNNER_TEMP/rs-css/node_modules/@solid/community-server/bin/server.js" >> "$GITHUB_ENV"
       - run: npx --prefix acceptance playwright install --with-deps chromium
-      - run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: shared-data-modules/movies/vanilla
-      - run: npx tsc -p tsconfig.json --typeRoots ./node_modules/@types
+      - run: pnpm exec tsc -p tsconfig.json --typeRoots ./node_modules/@types
         working-directory: shared-data-modules/movies/vanilla
       - run: npm --prefix acceptance test
       - uses: actions/upload-artifact@v4
@@ -132,9 +135,12 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/rs-css" --no-package-lock --ignore-scripts @solid/community-server@7.2.0
           echo "RS_TEST_SERVER=$RUNNER_TEMP/rs-css/node_modules/@solid/community-server/bin/server.js" >> "$GITHUB_ENV"
       - run: npx --prefix acceptance playwright install --with-deps chromium
-      - run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: shared-data-modules/movies/vanilla
-      - run: npx tsc -p tsconfig.json --typeRoots ./node_modules/@types
+      - run: pnpm exec tsc -p tsconfig.json --typeRoots ./node_modules/@types
         working-directory: shared-data-modules/movies/vanilla
       - name: Wait for the published origin
         run: curl --fail --retry 12 --retry-all-errors --retry-delay 10 https://media-kraken.pondersource.com/
