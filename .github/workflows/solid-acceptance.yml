@@ -83,6 +83,7 @@ jobs:
           VUE_APP_BASE_URL: https://media-kraken.pondersource.com
       - run: |
           printf '%s\n' media-kraken.pondersource.com > dist/CNAME
+          cp -R atomic dist/
           touch dist/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
